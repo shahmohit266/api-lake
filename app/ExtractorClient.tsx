@@ -85,13 +85,22 @@ export default function ExtractorClient({ userEmail }: ExtractorProps) {
     };
 
     try {
-      if (mode === "saveAs") {
+      if (mode === "save" && activeId) {
+        const { error } = await supabase.from('saved_queries').update(payload).eq('id', activeId);
+        if (error) throw error;
+        setActivePresetName(presetName);
+      } else if (mode === "saveAs" || mode === "save") {
         const { data, error } = await supabase.from('saved_queries').insert([payload]).select();
         if (error) throw error;
         if (data && data[0]) {
           setActiveId(data[0].id);
           setActivePresetName(data[0].name);
         }
+      } else if (mode === "delete" && activeId) {
+        const { error } = await supabase.from('saved_queries').delete().eq('id', activeId);
+        if (error) throw error;
+        setActiveId(null);
+        setPresetName("");
       }
       log("Success! Database operation complete.");
       fetchPresets();
@@ -286,30 +295,46 @@ export default function ExtractorClient({ userEmail }: ExtractorProps) {
           {/* Action Sidebar */}
           <div className="lg:col-span-1 space-y-6">
             
-            {/* Presets Card */}
-            <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-lg">
-              <h3 className="text-sm font-medium text-slate-300 mb-4">Saved Presets</h3>
-              <div className="flex gap-2 mb-4">
-                <input 
-                  type="text" 
-                  placeholder="Preset Name..." 
-                  value={presetName}
-                  onChange={(e) => setPresetName(e.target.value)}
-                  className="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm w-full outline-none focus:border-sky-500"
-                />
-                <button onClick={() => confirmAction("saveAs")} className="bg-slate-800 hover:bg-slate-700 border border-slate-600 px-3 rounded-lg text-sm transition-colors">
-                  Save
-                </button>
-              </div>
-              <div className="space-y-2 max-h-40 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-700">
-                {savedPresets.map(p => (
-                  <button key={p.id} onClick={() => loadPreset(p)} className="w-full text-left px-3 py-2 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-sm text-slate-300 truncate transition-colors">
-                    {p.name}
-                  </button>
-                ))}
-                {savedPresets.length === 0 && <p className="text-xs text-slate-500">No presets saved yet.</p>}
-              </div>
-            </div>
+           {/* Presets Card */}
+<div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-lg">
+  <div className="flex justify-between items-center mb-4">
+    <h3 className="text-sm font-medium text-slate-300">Saved Presets</h3>
+    {activeId && (
+      <button onClick={() => confirmAction("delete")} className="text-xs text-red-400 hover:text-red-300 transition-colors">
+        Delete Active
+      </button>
+    )}
+  </div>
+  
+  <div className="space-y-2 mb-4">
+    <input 
+      type="text" 
+      placeholder="Preset Name..." 
+      value={presetName}
+      onChange={(e) => setPresetName(e.target.value)}
+      className="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm w-full outline-none focus:border-sky-500"
+    />
+    <div className="flex gap-2">
+      <button onClick={() => confirmAction(activeId ? "save" : "saveAs")} className="flex-1 bg-slate-800 hover:bg-slate-700 border border-slate-600 py-1.5 rounded-lg text-xs font-medium transition-colors">
+        {activeId ? "Update Preset" : "Save New"}
+      </button>
+      {activeId && (
+        <button onClick={() => confirmAction("saveAs")} className="flex-1 bg-slate-800 hover:bg-slate-700 border border-slate-600 py-1.5 rounded-lg text-xs font-medium transition-colors">
+          Save As Copy
+        </button>
+      )}
+    </div>
+  </div>
+  
+  <div className="space-y-2 max-h-40 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-700">
+    {savedPresets.map(p => (
+      <button key={p.id} onClick={() => loadPreset(p)} className={`w-full text-left px-3 py-2 rounded-lg text-sm truncate transition-colors ${activeId === p.id ? 'bg-sky-900/30 border border-sky-500/50 text-sky-300' : 'bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300'}`}>
+        {p.name}
+      </button>
+    ))}
+    {savedPresets.length === 0 && <p className="text-xs text-slate-500">No presets saved yet.</p>}
+  </div>
+</div>
 
             {/* Execution Card */}
             <div className="sticky top-6 bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-lg">
